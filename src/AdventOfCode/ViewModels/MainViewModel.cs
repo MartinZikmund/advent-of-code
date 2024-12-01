@@ -240,7 +240,7 @@ public partial class MainViewModel : ObservableObject
         await RunWithInputAsync(SelectedPuzzle, stream);
     }
 
-    [RelayCommand(CanExecute = nameof(IsPuzzleSelected))]
+    [RelayCommand]
     public async Task PickInputFileAsync()
     {
         // Find the puzzle based on selected year/day/part
@@ -286,6 +286,11 @@ public partial class MainViewModel : ObservableObject
 
     private async Task<StorageFile?> GetCachedInputFileAsync()
     {
+        if (SelectedPuzzle is null)
+        {
+            return null;
+        }
+
         string cachedFileName = GetCachedFileName(SelectedPuzzle.Year, SelectedPuzzle.Day, SelectedPuzzle.Part);
         StorageFolder localFolder = ApplicationData.Current.LocalFolder;
         try
