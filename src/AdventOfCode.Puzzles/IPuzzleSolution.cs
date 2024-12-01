@@ -2,5 +2,5 @@ namespace AdventOfCode.Puzzles;
 
 public interface IPuzzleSolution
 {
-    Task<string> SolveAsync(StringReader inputReader);
+    Task<string> SolveAsync(StreamReader inputReader);
 }
