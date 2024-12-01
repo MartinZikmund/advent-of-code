@@ -1,0 +1,10 @@
+{
+  "background_color": "#ffffff",
+  "description": "AdventOfCode",
+  "display": "standalone",
+  "name": "AdventOfCode",
+  "short_name": "AdventOfCode",
+  "start_url": "/index.html",
+  "theme_color": "#ffffff",
+  "scope": "/"
+}
