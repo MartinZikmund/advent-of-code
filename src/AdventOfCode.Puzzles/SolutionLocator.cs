@@ -32,13 +32,17 @@ public static class SolutionLocator
 
                 if (namespaceParts.Length >= 5)
                 {
-                    if (namespaceParts[4].StartsWith("Part") && int.TryParse(namespaceParts[4].Substring(5), out int parsedPart))
+                    if (namespaceParts[4].StartsWith("Part") && int.TryParse(namespaceParts[4].Substring(4), out int parsedPart))
                     {
                         part = parsedPart;
                     }
                     else if (int.TryParse(namespaceParts[4].TrimStart('_'), out parsedPart))
                     {
                         part = parsedPart;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Invalid namespace for type {type.FullName}");
                     }
                 }
 
@@ -52,6 +56,10 @@ public static class SolutionLocator
                     name.Equals(dayFolder, StringComparison.OrdinalIgnoreCase));
 
                 puzzleInfos.Add(new PuzzleSolutionInfo(year, day, part, type, testDataResourceName));
+            }
+            else
+            {
+                throw new InvalidOperationException($"Invalid namespace for type {type.FullName}");
             }
         }
 
