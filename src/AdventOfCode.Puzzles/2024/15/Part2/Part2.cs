@@ -117,7 +117,6 @@ public partial class Part2 : IPuzzleSolution
     {
         var newPosition = position + direction;
         var currentTile = _map[position.X, position.Y];
-        var newTile = _map[newPosition.X, newPosition.Y];
 
         if (currentTile == '.')
         {
@@ -128,6 +127,8 @@ public partial class Part2 : IPuzzleSolution
         {
             return false;
         }
+
+        var newTile = _map[newPosition.X, newPosition.Y];
 
         if (currentTile == '[' || currentTile == ']')
         {
@@ -148,11 +149,6 @@ public partial class Part2 : IPuzzleSolution
             }
 
             return CanMove(newPosition, direction);
-        }
-               
-        if (newTile == '.')
-        {
-            return true;
         }
 
         if (currentTile == '@')
