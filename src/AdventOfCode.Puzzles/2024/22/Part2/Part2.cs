@@ -13,7 +13,7 @@ public partial class Part2 : IPuzzleSolution
 
             ulong secretNumber = ulong.Parse(line);
             var previousLastDigit = GetLastDigit(secretNumber);
-            for (int i = 0; i < 1999; i++)
+            for (int i = 0; i < 2000; i++)
             {
                 secretNumber = Evolve(secretNumber);
                 var newLastDigit = GetLastDigit(secretNumber);
