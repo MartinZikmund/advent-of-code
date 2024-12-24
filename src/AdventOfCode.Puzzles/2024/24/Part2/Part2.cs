@@ -39,10 +39,18 @@ public partial class Part2 : IPuzzleSolution
         var zGates = _gates.Where(g => g.StartsWith("z")).OrderBy(g => g).Reverse().ToList();
 
         SwapOutputs("z12", "vdc");
+        SwapOutputs("z21", "nhn");
+        //SwapOutputs("z25", "z45");
+        //SwapOutputs("z33", "vnr");
+        //SwapOutputs("z38", "kmm");
+
+        var names = string.Join(",", new List<string> { "z12", "z21", "z33", "z38", "vdc", "nhn", "vnr", "kmm" }.OrderBy(n => n).ToList());
+        Console.WriteLine(names);
         SortConnectionsTopologically();
 
+        int confirmedSolution = 25;
         bool performSwap = false;
-        var faultIndex = _sortedOutputs.IndexOf("z21");
+        var faultIndex = _sortedOutputs.IndexOf("z25");
         for (var gateToSwap1 = faultIndex; gateToSwap1 >= 0; gateToSwap1--)
         {
             for (var gateToSwap2 = gateToSwap1 + 1; gateToSwap2 < _sortedOutputs.Count; gateToSwap2++)
@@ -52,7 +60,7 @@ public partial class Part2 : IPuzzleSolution
 
                 var minFault = int.MaxValue;
 
-                for (int i = 0; i < 1000; i++)
+                for (int i = 0; i < 10000; i++)
                 {
                     var randomA = Random.Shared.NextInt64();
                     // Keep top 45 bits only
@@ -87,7 +95,7 @@ public partial class Part2 : IPuzzleSolution
                     //Console.WriteLine();
                 }
 
-                if (minFault > 21 && minFault < int.MaxValue)
+                if (minFault <= confirmedSolution && minFault < int.MaxValue)
                 {
                     Console.WriteLine("Correct swap " + gate1 + " for " + gate2);
                 }
@@ -160,7 +168,7 @@ public partial class Part2 : IPuzzleSolution
         }
 
         var expected = a + b;
-        var expectedBinary = Convert.ToString(expected, 2);
+        var expectedBinary = Convert.ToString(expected, 2).PadLeft(45);
 
         Evaluate(inputValues, gateSwap1, gateSwap2);
 
