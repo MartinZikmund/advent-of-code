@@ -12,29 +12,16 @@ public partial class Part2 : IPuzzleSolution
     public async Task<string> SolveAsync(StreamReader inputReader)
     {
         await ReadInputAsync(inputReader);
-        
-        _swappedOutputs.Add(("z12", "vdc"));
-        _swappedOutputs.Add(("z21", "nhn"));
-        _swappedOutputs.Add(("tvb", "khg"));
-        _swappedOutputs.Add(("z33", "gst"));
 
-        int lastFaultyIndex = 33;
-
-        if (_swappedOutputs.Count > 4)
+        SortConnectionsTopologically();
+        var lastFaultyIndex = 12;
+        while (_swappedOutputs.Count < 4)
         {
-            foreach (var swap in _swappedOutputs)
-            {
-                SwapOutputs(swap.gateA, swap.gateB);
-            }
+            var fix = FindFixForFaultyConnection(lastFaultyIndex);
 
-            SortConnectionsTopologically();
-
-            var fixes = FindFixesForFaultyConnection(lastFaultyIndex);
-
-            foreach (var fix in fixes)
-            {
-                Console.WriteLine($"{fix.gate1} -> {fix.gate2} #{fix.faultIndex}");
-            }
+            _swappedOutputs.Add((fix.gate1, fix.gate2));
+            SwapOutputs(fix.gate1, fix.gate2);
+            lastFaultyIndex = fix.faultIndex;
         }
 
         var names = string.Join(",",
@@ -46,7 +33,7 @@ public partial class Part2 : IPuzzleSolution
         return names;
     }
 
-    private (string gate1, string gate2, int faultIndex)[] FindFixesForFaultyConnection(int firstInvalidZGate)
+    private (string gate1, string gate2, int faultIndex) FindFixForFaultyConnection(int firstInvalidZGate)
     {
         var potentialFixes = new List<(string gate1, string gate2, int faultIndex)>();
         var confirmedGates = GetDependencies(firstInvalidZGate - 1);
@@ -62,13 +49,12 @@ public partial class Part2 : IPuzzleSolution
 
                 if (newFaultIndex > firstInvalidZGate)
                 {
-                    potentialFixes.Add((suspectedGate, swapGate, newFaultIndex));
-                    Console.WriteLine($"Potential fix: {suspectedGate} -> {swapGate} #{newFaultIndex}");
+                    return (suspectedGate, swapGate, newFaultIndex);
                 }
             }
         }
 
-        return potentialFixes.ToArray();
+        throw new InvalidOperationException("No fix found.");
     }
 
     private HashSet<string> GetDependencies(int zGate)
