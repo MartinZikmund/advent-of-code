@@ -5,118 +5,172 @@ public partial class Part2 : IPuzzleSolution
     private List<Connection> _connections = new();
     private HashSet<string> _gates = new();
 
+    private List<(string gateA, string gateB)> _swappedOutputs = new();
+
     private List<string> _sortedOutputs = new();
 
     public async Task<string> SolveAsync(StreamReader inputReader)
     {
-        while (await inputReader.ReadLineAsync() is { } line && !string.IsNullOrEmpty(line))
+        await ReadInputAsync(inputReader);
+        
+        _swappedOutputs.Add(("z12", "vdc"));
+        _swappedOutputs.Add(("z21", "nhn"));
+        _swappedOutputs.Add(("tvb", "khg"));
+        _swappedOutputs.Add(("z33", "gst"));
+
+        int lastFaultyIndex = 33;
+
+        if (_swappedOutputs.Count > 4)
         {
+            foreach (var swap in _swappedOutputs)
+            {
+                SwapOutputs(swap.gateA, swap.gateB);
+            }
+
+            SortConnectionsTopologically();
+
+            var fixes = FindFixesForFaultyConnection(lastFaultyIndex);
+
+            foreach (var fix in fixes)
+            {
+                Console.WriteLine($"{fix.gate1} -> {fix.gate2} #{fix.faultIndex}");
+            }
         }
 
+        var names = string.Join(",",
+            _swappedOutputs
+                .SelectMany(o => new string[] { o.gateA, o.gateB })
+                .OrderBy(n => n)
+                .ToList());
+
+        return names;
+    }
+
+    private (string gate1, string gate2, int faultIndex)[] FindFixesForFaultyConnection(int firstInvalidZGate)
+    {
+        var potentialFixes = new List<(string gate1, string gate2, int faultIndex)>();
+        var confirmedGates = GetDependencies(firstInvalidZGate - 1);
+        var suspectedGates = GetDependencies(firstInvalidZGate).Except(confirmedGates);
+        var swapGates = _sortedOutputs.Except(confirmedGates).ToList();
+        var faultIndex = _sortedOutputs.IndexOf(GetNumberedGateName('z', firstInvalidZGate));
+
+        foreach(var suspectedGate in suspectedGates)
+        {
+            foreach (var swapGate in swapGates)
+            {
+                var newFaultIndex = TestGateSwap(suspectedGate, swapGate, firstInvalidZGate);
+
+                if (newFaultIndex > firstInvalidZGate)
+                {
+                    potentialFixes.Add((suspectedGate, swapGate, newFaultIndex));
+                    Console.WriteLine($"Potential fix: {suspectedGate} -> {swapGate} #{newFaultIndex}");
+                }
+            }
+        }
+
+        return potentialFixes.ToArray();
+    }
+
+    private HashSet<string> GetDependencies(int zGate)
+    {
+        HashSet<string> confirmedNodes = new();
+        Queue<string> queue = new Queue<string>();
+        queue.Enqueue(GetNumberedGateName('z', zGate));
+
+        while (queue.Count > 0)
+        {
+            var currentOutput = queue.Dequeue();
+            confirmedNodes.Add(currentOutput);
+
+            var connection = _connections.FirstOrDefault(c => c.Output == currentOutput);
+            if (connection is null)
+            {
+                continue;
+            }
+
+            queue.Enqueue(connection.Input1);
+            queue.Enqueue(connection.Input2);
+        }
+
+        return confirmedNodes;
+    }
+
+    private async Task ReadInputAsync(StreamReader inputReader)
+    {
+        while (await inputReader.ReadLineAsync() is { } line && !string.IsNullOrEmpty(line))
+        {
+            // Skip x and y gate inputs
+        }
+
+        // Read connections
         while (await inputReader.ReadLineAsync() is { } line)
         {
-            var parts = line.Split(" ");
-            var connection = new Connection
-            {
-                Input1 = parts[0],
-                Input2 = parts[2],
-                Output = parts[4],
-                Operation = parts[1] switch
-                {
-                    "AND" => Operation.And,
-                    "OR" => Operation.Or,
-                    "XOR" => Operation.Xor,
-                    _ => throw new InvalidOperationException()
-                }
-            };
+            var connection = Connection.ParseConnection(line);
 
             _gates.Add(connection.Input1);
             _gates.Add(connection.Input2);
             _gates.Add(connection.Output);
             _connections.Add(connection);
         }
+    }
 
-        var zGates = _gates.Where(g => g.StartsWith("z")).OrderBy(g => g).Reverse().ToList();
+    private int TestGateSwap(string gate1, string gate2, int fault)
+    {
+        SwapOutputs(gate1, gate2);
 
-        SwapOutputs("z12", "vdc");
-        SwapOutputs("z21", "nhn");
-        //SwapOutputs("z25", "z45");
-        //SwapOutputs("z33", "vnr");
-        //SwapOutputs("z38", "kmm");
+        var minFault = int.MaxValue;
 
-        var names = string.Join(",", new List<string> { "z12", "z21", "z33", "z38", "vdc", "nhn", "vnr", "kmm" }.OrderBy(n => n).ToList());
-        Console.WriteLine(names);
-        SortConnectionsTopologically();
-
-        int confirmedSolution = 25;
-        bool performSwap = false;
-        var faultIndex = _sortedOutputs.IndexOf("z25");
-        for (var gateToSwap1 = faultIndex; gateToSwap1 >= 0; gateToSwap1--)
+        // Test random number pairs
+        for (int i = 0; i < 20; i++)
         {
-            for (var gateToSwap2 = gateToSwap1 + 1; gateToSwap2 < _sortedOutputs.Count; gateToSwap2++)
+            var randomA = Random.Shared.NextInt64();
+            // Keep top 45 bits only
+            randomA &= 0x1FFFFFFFFFFFFF;
+            var randomB = Random.Shared.NextInt64();
+            randomB &= 0x1FFFFFFFFFFFFF;
+            
+            var faults = TestInput(randomA, randomB);
+            if (faults.Length > 0)
             {
-                var gate1 = _sortedOutputs[gateToSwap1];
-                var gate2 = _sortedOutputs[gateToSwap2];
-
-                var minFault = int.MaxValue;
-
-                for (int i = 0; i < 10000; i++)
+                minFault = Math.Min(faults.Min(f => f.index), minFault);
+                if (minFault <= fault)
                 {
-                    var randomA = Random.Shared.NextInt64();
-                    // Keep top 45 bits only
-                    randomA &= 0x1FFFFFFFFFFFFF;
-                    var randomB = Random.Shared.NextInt64();
-                    randomB &= 0x1FFFFFFFFFFFFF;
-                    try
-                    {
-                        if (!performSwap)
-                        {
-                            gate1 = "";
-                            gate2 = "";
-                        }
-                        var faults = TestInput(randomA, randomB, zGates, gate1, gate2);
-                        if (faults.Length == 0)
-                        {
-                            // Solved!
-                            break;
-                        }
-
-                        minFault = Math.Min(faults.Min(f => f.index), minFault);
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        minFault = 0;
-                        break;
-                    }
-                    //foreach (var fault in faults)
-                    //{
-                    //    Console.WriteLine($"{fault.index}: Expected {fault.expected}, got {fault.actual}");
-                    //}
-                    //Console.WriteLine();
-                }
-
-                if (minFault <= confirmedSolution && minFault < int.MaxValue)
-                {
-                    Console.WriteLine("Correct swap " + gate1 + " for " + gate2);
+                    break;
                 }
             }
         }
-        return "";
+
+        // Test 1 s on each position
+        for (int firstIndex = 0; firstIndex < 45; firstIndex++)
+        {
+            var a = 1L << firstIndex;
+            for (int secondIndex = 0; secondIndex < 45; secondIndex++)
+            {
+                var b = 1L << secondIndex;
+
+                var faults = TestInput(a, b);
+                if (faults.Length > 0)
+                {
+                    minFault = Math.Min(faults.Min(f => f.index), minFault);
+                    if (minFault <= fault)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        SwapOutputs(gate1, gate2);
+
+        return minFault;
     }
 
     private void SwapOutputs(string gate1, string gate2)
     {
-        foreach (var connection in _connections)
-        {
-            if (connection.Output == gate1)
-            {
-                connection.Output = gate2;
-            }
-            else if (connection.Output == gate2)
-            {
-                connection.Output = gate1;
-            }
-        }
+        var connection1 = _connections.Single(c => c.Output == gate1);
+        var connection2 = _connections.Single(c => c.Output == gate2);
+
+        connection1.SwapOutput(connection2);
     }
 
     private void SortConnectionsTopologically()
@@ -126,8 +180,8 @@ public partial class Part2 : IPuzzleSolution
         var knownGates = new HashSet<string>();
         for (int i = 0; i < 45; i++)
         {
-            knownGates.Add("x" + i.ToString("00"));
-            knownGates.Add("y" + i.ToString("00"));
+            knownGates.Add(GetNumberedGateName('x', i));
+            knownGates.Add(GetNumberedGateName('y', i));
         }
 
         while (_connections.Count > 0)
@@ -149,119 +203,76 @@ public partial class Part2 : IPuzzleSolution
         _connections = sortedConnections;
     }
 
-    private (int index, int expected, int actual)[] TestInput(long a, long b, List<string> zGates, string gateSwap1, string gateSwap2)
+    private (int index, int expected, int actual)[] TestInput(long a, long b)
     {
         var aBinary = Convert.ToString(a, 2).PadLeft(45);
         var bBinary = Convert.ToString(b, 2).PadLeft(45);
 
-        var inputValues = new Dictionary<string, int>();
+        var gateValues = new Dictionary<string, int>();
         for (int i = 0; i < 45; i++)
         {
             var index = aBinary.Length - i - 1;
-            inputValues["x" + i.ToString("00")] = aBinary[index] == '1' ? 1 : 0;
+            gateValues[GetNumberedGateName('x', i)] = aBinary[index] == '1' ? 1 : 0;
         }
 
         for (int i = 0; i < 45; i++)
         {
             var index = bBinary.Length - i - 1;
-            inputValues["y" + i.ToString("00")] = bBinary[index] == '1' ? 1 : 0;
+            gateValues[GetNumberedGateName('y', i)] = bBinary[index] == '1' ? 1 : 0;
         }
 
         var expected = a + b;
         var expectedBinary = Convert.ToString(expected, 2).PadLeft(45);
 
-        Evaluate(inputValues, gateSwap1, gateSwap2);
-
         var faults = new List<(int index, int expected, int actual)>();
-        for (int i = 0; i < 45; i++)
+        if (Evaluate(gateValues))
         {
-            var actualZ = inputValues["z" + i.ToString("00")];
-            var expectedZ = expectedBinary[expectedBinary.Length - i - 1] == '1' ? 1 : 0;
-
-            if (actualZ != expectedZ)
+            for (int i = 0; i < 45; i++)
             {
-                faults.Add((i, expectedZ, actualZ));
+                var actualZ = gateValues[GetNumberedGateName('z', i)];
+                var expectedZ = expectedBinary[expectedBinary.Length - i - 1] == '1' ? 1 : 0;
+
+                if (actualZ != expectedZ)
+                {
+                    faults.Add((i, expectedZ, actualZ));
+                }
             }
+        }
+        else
+        {
+            faults.Add((-1, -1, -1));
         }
 
         return faults.ToArray();
     }
 
-    private long GetZValue(List<string> zGates, Dictionary<string, int> values)
-    {
-        var binary = string.Join("", zGates.Select(g => values[g]));
-        return Convert.ToInt64(binary, 2);
-    }
-
-    private void Evaluate(Dictionary<string, int> values, string gateSwap1, string gateSwap2)
+    private bool Evaluate(Dictionary<string, int> values)
     {
         var gatesToProcess = new Queue<string>();
-        var processedConnections = new HashSet<Connection>();
-        while (values.Count < _gates.Count)
+        var processed = new HashSet<Connection>();
+        while (processed.Count != _connections.Count)
         {
-            int processed = 0;
+            bool changed = false;
 
             foreach (var connection in _connections)
             {
-                if (!processedConnections.Contains(connection) &&
-                    values.ContainsKey(connection.Input1) &&
-                    values.ContainsKey(connection.Input2))
+                if (!processed.Contains(connection) && connection.CanEvaluate(values))
                 {
-                    EvaluateConnection(connection, values, gateSwap1, gateSwap2);
-                    processedConnections.Add(connection);
-                    processed++;
+                    connection.Evaluate(values);
+                    processed.Add(connection);
+                    changed = true;
                 }
             }
 
-            if (processed == 0)
+            if (!changed)
             {
-                throw new InvalidOperationException("No progress made");
+                return false;
             }
         }
 
+        return true;
     }
 
-    private void EvaluateConnection(Connection connection, Dictionary<string, int> values, string gateSwap1, string gateSwap2)
-    {
-        var input1 = values[connection.Input1];
-        var input2 = values[connection.Input2];
-        var output = connection.Operation switch
-        {
-            Operation.And => input1 & input2,
-            Operation.Or => input1 | input2,
-            Operation.Xor => input1 ^ input2,
-            _ => throw new InvalidOperationException()
-        };
-
-        if (connection.Output == gateSwap1)
-        {
-            values[gateSwap2] = output;
-        }
-        else if (connection.Output == gateSwap2)
-        {
-            values[gateSwap1] = output;
-        }
-        else
-        {
-            values[connection.Output] = output;
-        }
-    }
-
-    public enum Operation
-    {
-        And,
-        Or,
-        Xor
-    }
-
-    public class Connection
-    {
-        public string Input1 { get; set; }
-
-        public string Input2 { get; set; }
-
-        public string Output { get; set; }
-
-        public Operation Operation { get; set; }
-    }
+    private string GetNumberedGateName(char prefix, int number) =>
+        prefix + number.ToString("00");
 }
