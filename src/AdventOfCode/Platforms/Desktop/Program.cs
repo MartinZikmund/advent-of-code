@@ -1,3 +1,4 @@
+using Uno.UI.Hosting;
 using Uno.UI.Runtime.Skia;
 
 namespace AdventOfCode;
@@ -6,12 +7,12 @@ public class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        var host = SkiaHostBuilder.Create()
+        var host = UnoPlatformHostBuilder.Create()
             .App(() => new App())
             .UseX11()
             .UseLinuxFrameBuffer()
             .UseMacOS()
-            .UseWindows()
+            .UseWin32()
             .Build();
 
         host.Run();
