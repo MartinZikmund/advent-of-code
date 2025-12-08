@@ -1,6 +1,6 @@
 namespace AdventOfCode.Puzzles._2025._03.Part2;
 
-public class AoC2025Day3Part2 : IPuzzleSolution
+public class AoC2025Day4Part2 : IPuzzleSolution
 {
     public async Task<string> SolveAsync(StreamReader inputReader)
     {
