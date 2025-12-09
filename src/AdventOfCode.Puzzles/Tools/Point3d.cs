@@ -11,4 +11,6 @@ public record struct Point3d(int X, int Y, int Z)
     public static implicit operator Point3d((int X, int Y, int Z) tuple) => new Point3d(tuple.X, tuple.Y, tuple.Z);
 
     public int ManhattanDistance(Point3d b) => Math.Abs(X - b.X) + Math.Abs(Y - b.Y) + Math.Abs(Z - b.Z);
+
+    public double Distance(Point3d b) => Math.Sqrt(Math.Pow(X - b.X, 2) + Math.Pow(Y - b.Y, 2) + Math.Pow(Z - b.Z, 2));
 }
